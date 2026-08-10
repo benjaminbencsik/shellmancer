@@ -19,6 +19,7 @@ to accomplish a task.
 ## Install
 
 ```bash
+git clone https://github.com/benjaminbencsik/shellmancer.git
 cd shellmancer
 python3 -m venv .venv
 source .venv/bin/activate
