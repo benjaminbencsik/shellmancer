@@ -2,50 +2,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .config import Config
-from .protocol import parse_action
 from .providers.ollama import OllamaProvider
 from .tools.shell import ShellTool
 from .ui import TerminalUI
 
 
-SYSTEM_PROMPT = r"""
-You are Shellmancer, a local terminal agent running on the user's machine.
+SYSTEM_PROMPT = """
+You are Shellmancer, a local terminal assistant.
 
-Your job is to accomplish the user's task by using a general-purpose shell.
-You are not restricted to a predefined tool registry. You may invoke any command
-that exists in the environment, chain commands, create files, run scripts,
-inspect output, install packages when appropriate, compile software, and iterate.
+Answer the user normally when terminal access is not needed. Use the shell tool
+only when you need to inspect, run, create, modify, install, build, test, or
+otherwise interact with the user's machine.
 
-You have exactly one executable capability: run a shell command.
-The host application will execute the command and return stdout, stderr, and the
-exit code. Use those results to decide the next step.
-
-IMPORTANT OUTPUT PROTOCOL:
-Return ONLY one JSON object per turn. Do not use markdown.
-
-To execute a command:
-{"type":"shell","command":"your command here"}
-
-When the task is complete:
-{"type":"final","message":"concise result for the user"}
-
-Guidelines:
-- If the user is only greeting you, chatting, or asking something that does not
-  require terminal access, answer immediately with a final response. Do not run
-  a shell command just because one is available.
-- Inspect the environment instead of assuming a program is installed when a task
-  actually requires terminal access.
-- Prefer non-interactive command flags.
-- Keep each shell action purposeful.
-- Check exit codes and stderr.
-- If a command fails, diagnose it and try a reasonable alternative.
-- Do not claim a command succeeded unless the returned result shows it did.
-- Work inside the supplied current working directory unless the user's task
-  explicitly requires another location.
-- The user is responsible for authorization and scope of any systems they ask
-  you to interact with. Do not invent authorization.
+When using the shell:
+- Work inside the supplied current working directory unless the task requires otherwise.
+- Prefer purposeful, non-interactive commands.
+- Inspect the environment instead of making avoidable assumptions.
+- Check command output and exit status before deciding what to do next.
+- Do not claim a command succeeded unless its result shows that it did.
+- The user controls authorization and scope; do not invent authorization.
 """.strip()
 
 
@@ -90,9 +68,20 @@ class Agent:
             raise KeyboardInterrupt
         return answer in {"", "y", "yes"}
 
+    @staticmethod
+    def _assistant_message(message: dict[str, Any]) -> dict[str, Any]:
+        clean: dict[str, Any] = {
+            "role": "assistant",
+            "content": str(message.get("content") or ""),
+        }
+        tool_calls = message.get("tool_calls")
+        if isinstance(tool_calls, list) and tool_calls:
+            clean["tool_calls"] = tool_calls
+        return clean
+
     def run(self, task: str) -> str:
         cwd = str(Path(self.shell.cwd))
-        messages: list[dict[str, str]] = [
+        messages: list[dict[str, Any]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
@@ -111,38 +100,63 @@ class Agent:
 
             label = "Thinking" if step == 1 else "Working"
             with self.ui.activity(label):
-                raw = self.provider.chat(messages, think=self.options.think)
+                response = self.provider.chat(messages, think=self.options.think)
 
-            action = parse_action(raw)
-            messages.append({"role": "assistant", "content": raw})
+            messages.append(self._assistant_message(response))
+            tool_calls = response.get("tool_calls")
 
-            if action.type == "final":
-                return action.message or "Done."
+            if not isinstance(tool_calls, list) or not tool_calls:
+                content = str(response.get("content") or "").strip()
+                return content or "Done."
 
-            command = action.command or ""
-            if not command.strip():
+            for call in tool_calls:
+                if not isinstance(call, dict):
+                    continue
+
+                function = call.get("function")
+                if not isinstance(function, dict):
+                    continue
+
+                name = str(function.get("name") or "")
+                arguments = function.get("arguments")
+                if not isinstance(arguments, dict):
+                    arguments = {}
+
+                if name != "shell":
+                    messages.append({
+                        "role": "tool",
+                        "tool_name": name or "unknown",
+                        "content": "Unknown tool. The only available tool is shell.",
+                    })
+                    continue
+
+                command = str(arguments.get("command") or "").strip()
+                if not command:
+                    messages.append({
+                        "role": "tool",
+                        "tool_name": "shell",
+                        "content": "The command was empty. Use shell only with a valid command.",
+                    })
+                    continue
+
+                if not self._approve(command):
+                    messages.append({
+                        "role": "tool",
+                        "tool_name": "shell",
+                        "content": "The user declined this command. Choose another approach or answer without running it.",
+                    })
+                    continue
+
+                if self.options.auto_approve:
+                    self.ui.command(command)
+
+                result = self.shell.run(command)
+                rendered = result.render(self.config.max_output_chars)
+                print(rendered)
                 messages.append({
-                    "role": "user",
-                    "content": "The shell command was empty. Return a valid shell action or final response.",
+                    "role": "tool",
+                    "tool_name": "shell",
+                    "content": rendered,
                 })
-                continue
 
-            if not self._approve(command):
-                messages.append({
-                    "role": "user",
-                    "content": "The user declined that command. Choose a different approach or finish.",
-                })
-                continue
-
-            if self.options.auto_approve:
-                self.ui.command(command)
-
-            result = self.shell.run(command)
-            rendered = result.render(self.config.max_output_chars)
-            print(rendered)
-            messages.append({
-                "role": "user",
-                "content": "Shell result:\n" + rendered,
-            })
-
-        return f"Stopped after reaching the maximum of {self.config.max_steps} agent steps."
+        return f"Stopped after reaching the maximum of {self.config.max_steps} agent iterations."
