@@ -81,6 +81,22 @@ You can also target another directory without changing directories first:
 shellmancer -C ~/projects/my-app "inspect this project and explain its structure"
 ```
 
+## Terminal UI
+
+Interactive terminals use a lightweight colored interface with an animated
+spinner while the local model is responding. The animation is implemented with
+the Python standard library, so it adds no runtime dependency.
+
+Color and animation are automatically avoided when output is not attached to a
+terminal. The standard `NO_COLOR` environment variable is also respected.
+
+Useful display controls:
+
+- `--verbose` — show the model, reasoning mode, and internal iteration details
+- `--quiet` — hide Shellmancer status messages while preserving command output
+- `--no-color` — disable ANSI colors
+- `--no-animation` — replace the spinner with a static status message
+
 ## Fast mode and thinking
 
 Shellmancer disables model thinking by default so short prompts and routine
