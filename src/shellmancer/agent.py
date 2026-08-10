@@ -52,7 +52,8 @@ Guidelines:
 class AgentOptions:
     auto_approve: bool = False
     cwd: str | None = None
-    verbose: bool = True
+    verbose: bool = False
+    quiet: bool = False
     think: bool = False
 
 
@@ -80,6 +81,21 @@ class Agent:
             raise KeyboardInterrupt
         return answer in {"", "y", "yes"}
 
+    def _show_status(self, step: int) -> None:
+        if self.options.quiet:
+            return
+
+        if self.options.verbose:
+            mode = "think" if self.options.think else "fast"
+            print(
+                f"\n[Shellmancer step {step}/{self.config.max_steps} | "
+                f"{self.config.model} | {mode}]"
+            )
+            return
+
+        status = "Thinking..." if step == 1 else "Continuing..."
+        print(f"\nShellmancer › {status}")
+
     def run(self, task: str) -> str:
         cwd = str(Path(self.shell.cwd))
         messages: list[dict[str, str]] = [
@@ -91,12 +107,7 @@ class Agent:
         ]
 
         for step in range(1, self.config.max_steps + 1):
-            if self.options.verbose:
-                mode = "think" if self.options.think else "fast"
-                print(
-                    f"\n[Shellmancer step {step}/{self.config.max_steps} | "
-                    f"{self.config.model} | {mode}]"
-                )
+            self._show_status(step)
 
             raw = self.provider.chat(messages, think=self.options.think)
             action = parse_action(raw)
