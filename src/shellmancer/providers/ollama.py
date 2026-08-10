@@ -10,13 +10,15 @@ class OllamaProvider:
         self.model = model
         self.timeout = timeout
 
-    def chat(self, messages: list[dict[str, str]]) -> str:
+    def chat(self, messages: list[dict[str, str]], *, think: bool = False) -> str:
         response = requests.post(
             f"{self.base_url}/api/chat",
             json={
                 "model": self.model,
                 "messages": messages,
+                "think": think,
                 "stream": False,
+                "keep_alive": "10m",
                 "options": {"temperature": 0.1},
             },
             timeout=self.timeout,
