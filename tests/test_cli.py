@@ -1,4 +1,6 @@
-from shellmancer.cli import build_parser
+import requests
+
+from shellmancer.cli import build_parser, format_ollama_http_error
 
 
 def test_thinking_is_disabled_by_default() -> None:
@@ -50,3 +52,15 @@ def test_terminal_effects_can_be_disabled() -> None:
     args = build_parser().parse_args(["--no-color", "--no-animation", "inspect"])
     assert args.no_color is True
     assert args.no_animation is True
+
+
+def test_missing_model_error_is_actionable() -> None:
+    response = requests.Response()
+    response.status_code = 404
+    response._content = b'{"error":"model \'tiny-model\' not found"}'
+    error = requests.HTTPError("404 Client Error", response=response)
+
+    message = format_ollama_http_error(error, "tiny-model")
+
+    assert "tiny-model" in message
+    assert "ollama pull tiny-model" in message
