@@ -2,6 +2,7 @@ from shellmancer.agent import (
     clean_model_text,
     is_false_capability_refusal,
     is_unexecuted_shell_intent,
+    is_vacuous_completion,
 )
 
 
@@ -38,3 +39,11 @@ def test_normal_future_tense_is_not_treated_as_shell_intent() -> None:
     assert not is_unexecuted_shell_intent(
         "I will explain the result without changing anything."
     )
+
+
+def test_vacuous_completion_is_detected() -> None:
+    assert is_vacuous_completion("Task complete.")
+
+
+def test_useful_completion_is_not_vacuous() -> None:
+    assert not is_vacuous_completion("Finished reviewing the project; two tests failed.")
