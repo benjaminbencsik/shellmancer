@@ -15,21 +15,55 @@ to accomplish a task.
 - Python 3.10+
 - Ollama running locally
 - An Ollama model capable of following structured instructions reliably
+- `pipx` recommended for a global CLI install
 
 ## Install
+
+Clone the repository and install Shellmancer as a global user command with
+`pipx`:
 
 ```bash
 git clone https://github.com/benjaminbencsik/shellmancer.git
 cd shellmancer
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+pipx install .
 ```
+
+After that, `shellmancer` and the shorter `sm` alias can be run from any
+directory without activating a virtual environment.
 
 Make sure Ollama is running and pull a model, for example:
 
 ```bash
 ollama pull qwen3:8b
+```
+
+### Development install
+
+If you are modifying Shellmancer itself, you can still use a local virtual
+environment:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+## Run from any directory
+
+By default, Shellmancer uses the directory you launched it from as its working
+directory. This means you can move into any project or folder and run it there:
+
+```bash
+cd ~/projects/my-app
+shellmancer "inspect this project and explain its structure"
+```
+
+Generated shell commands will run from `~/projects/my-app` for that session.
+
+You can also target another directory without changing directories first:
+
+```bash
+shellmancer -C ~/projects/my-app "inspect this project and explain its structure"
 ```
 
 ## Examples
