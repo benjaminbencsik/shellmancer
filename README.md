@@ -38,20 +38,6 @@ your first run:
 ollama pull qwen3:1.7b
 ```
 
-### Model sizing
-
-The default is intentionally small enough to be practical on CPU-only machines,
-small VPS instances, and modest servers while retaining useful instruction and
-agent capabilities.
-
-- `qwen3:1.7b` — default; balanced for CPU and low-resource systems
-- `qwen3:0.6b` — ultra-light option for very constrained hosts, with reduced reliability on complex multi-step tasks
-- `qwen3:4b` — stronger option when more memory and CPU performance are available
-- `qwen3:8b` — heavier option for higher-capability systems
-
-Choose another installed model at runtime with `-m` or set
-`SHELLMANCER_MODEL` permanently in your environment.
-
 ### Development install
 
 If you are modifying Shellmancer itself, you can still use a local virtual
