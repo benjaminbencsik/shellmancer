@@ -12,11 +12,16 @@ from .ui import TerminalUI
 
 
 SYSTEM_PROMPT = """
-You are Shellmancer, a local terminal assistant.
+You are Shellmancer, a local AI assistant with access to a shell tool on the
+user's machine.
 
-Answer the user normally when terminal access is not needed. Use the shell tool
-only when you need to inspect, run, create, modify, install, build, test, or
-otherwise interact with the user's machine.
+For normal conversation or informational requests that do not require access to
+the user's machine, answer directly and naturally. Do not mention the shell tool
+unless it is relevant to the request.
+
+When the task requires inspecting or changing the user's machine, use the shell
+tool. The shell tool is real and available to you; do not claim that you lack
+terminal or command-execution capability.
 
 When using the shell:
 - Work inside the supplied current working directory unless the task requires otherwise.
@@ -29,11 +34,24 @@ When using the shell:
 
 
 _TRAILING_THINK_MARKER_RE = re.compile(r"\s*/(?:no_think|think)\s*$", re.IGNORECASE)
+_FALSE_CAPABILITY_RE = re.compile(
+    r"(?:"
+    r"(?:can(?:not|'t)|unable to)\s+(?:execute|run)\s+(?:terminal\s+)?commands?"
+    r"|(?:do not|don't)\s+have\s+access\s+to\s+(?:the\s+)?terminal"
+    r"|can(?:not|'t)\s+access\s+(?:the\s+)?terminal"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def clean_model_text(text: str) -> str:
     """Remove model control markers that should never be shown to the user."""
     return _TRAILING_THINK_MARKER_RE.sub("", text).strip()
+
+
+def is_false_capability_refusal(text: str) -> bool:
+    """Detect a model incorrectly claiming Shellmancer has no terminal access."""
+    return bool(_FALSE_CAPABILITY_RE.search(text))
 
 
 @dataclass(slots=True)
@@ -97,6 +115,7 @@ class Agent:
                 "content": f"Current working directory: {cwd}\n\nTask:\n{task}",
             },
         ]
+        capability_retry_used = False
 
         for step in range(1, self.config.max_steps + 1):
             if self.options.verbose:
@@ -116,6 +135,21 @@ class Agent:
 
             if not isinstance(tool_calls, list) or not tool_calls:
                 content = clean_model_text(str(response.get("content") or ""))
+                if (
+                    content
+                    and not capability_retry_used
+                    and is_false_capability_refusal(content)
+                ):
+                    capability_retry_used = True
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "Correction: the shell tool is available. If this request does "
+                            "not require terminal access, answer it normally. If it does, "
+                            "use the shell tool instead of claiming terminal access is unavailable."
+                        ),
+                    })
+                    continue
                 return content or "Done."
 
             for call in tool_calls:
