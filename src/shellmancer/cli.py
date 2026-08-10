@@ -9,6 +9,17 @@ from .agent import Agent, AgentOptions
 from .config import Config
 
 
+YOLO_WARNING = """
+WARNING: YOLO MODE ENABLED
+Shellmancer will execute every generated shell command without asking for approval.
+Commands may modify or delete files, install software, expose local data, or change
+system configuration. Use YOLO mode only in an environment you are comfortable
+letting the model control.
+
+Pass --no-yolo-warning to suppress this warning.
+""".strip()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="shellmancer",
@@ -21,8 +32,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-y",
         "--yes",
+        "--yolo",
+        dest="yolo",
         action="store_true",
-        help="Automatically approve every generated shell command",
+        help="YOLO mode: automatically approve every generated shell command",
+    )
+    parser.add_argument(
+        "--no-yolo-warning",
+        action="store_true",
+        help="Suppress the startup warning when YOLO mode is enabled",
     )
     parser.add_argument(
         "--max-steps",
@@ -57,10 +75,13 @@ def main() -> None:
     if args.max_steps:
         config.max_steps = args.max_steps
 
+    if args.yolo and not args.no_yolo_warning:
+        print(YOLO_WARNING, file=sys.stderr)
+
     agent = Agent(
         config,
         AgentOptions(
-            auto_approve=args.yes,
+            auto_approve=args.yolo,
             cwd=args.cwd,
             verbose=not args.quiet,
         ),
