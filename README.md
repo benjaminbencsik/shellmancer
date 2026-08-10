@@ -23,7 +23,7 @@ to accomplish a task.
 git clone https://github.com/benjaminbencsik/shellmancer.git
 cd shellmancer
 pipx install .
-ollama pull qwen3:1.7b
+ollama pull qwen3:4b
 ```
 
 After installation, `shellmancer` and the shorter `sm` alias are available as
@@ -68,7 +68,7 @@ Run `shellmancer --help` for the full list of options.
 ## Environment variables
 
 ```text
-SHELLMANCER_MODEL=qwen3:1.7b
+SHELLMANCER_MODEL=qwen3:4b
 SHELLMANCER_OLLAMA_URL=http://127.0.0.1:11434
 SHELLMANCER_MAX_STEPS=25
 SHELLMANCER_TIMEOUT=300
