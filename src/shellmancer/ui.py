@@ -4,7 +4,6 @@ from contextlib import contextmanager
 import os
 import sys
 import threading
-import time
 from typing import Iterator, TextIO
 
 
