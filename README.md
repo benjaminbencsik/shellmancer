@@ -63,17 +63,15 @@ Alias:
 sm "show me which ports are listening locally"
 ```
 
-## Recon-style example
+## General workflow example
 
-For systems and targets you are authorized to test:
+Shellmancer can inspect the environment, choose appropriate installed commands,
+and build a multi-step workflow without hard-coded wrappers for individual tools.
 
 ```bash
 shellmancer --yes \
-  "enumerate subdomains for example.com using suitable installed tools, merge and deduplicate the results, then tell me where you saved them"
+  "scan my Downloads folder, group files by type into new folders, avoid overwriting duplicates, and summarize what changed"
 ```
-
-Shellmancer can first inspect which commands are installed and then build the
-workflow dynamically rather than depending on hard-coded wrappers for each tool.
 
 ## Environment variables
 
