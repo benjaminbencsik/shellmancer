@@ -31,11 +31,26 @@ pipx install .
 After that, `shellmancer` and the shorter `sm` alias can be run from any
 directory without activating a virtual environment.
 
-Make sure Ollama is running and pull a model, for example:
+Shellmancer uses `qwen3:1.7b` as its lightweight default model. Pull it before
+your first run:
 
 ```bash
-ollama pull qwen3:8b
+ollama pull qwen3:1.7b
 ```
+
+### Model sizing
+
+The default is intentionally small enough to be practical on CPU-only machines,
+small VPS instances, and modest servers while retaining useful instruction and
+agent capabilities.
+
+- `qwen3:1.7b` — default; balanced for CPU and low-resource systems
+- `qwen3:0.6b` — ultra-light option for very constrained hosts, with reduced reliability on complex multi-step tasks
+- `qwen3:4b` — stronger option when more memory and CPU performance are available
+- `qwen3:8b` — heavier option for higher-capability systems
+
+Choose another installed model at runtime with `-m` or set
+`SHELLMANCER_MODEL` permanently in your environment.
 
 ### Development install
 
@@ -69,18 +84,8 @@ shellmancer -C ~/projects/my-app "inspect this project and explain its structure
 ## Fast mode and thinking
 
 Shellmancer disables model thinking by default so short prompts and routine
-terminal tasks return quickly. For example:
-
-```bash
-shellmancer "hello"
-```
-
-For harder tasks where you want the model to spend more time reasoning, enable
-thinking explicitly:
-
-```bash
-shellmancer --think "inspect this project, diagnose the failing tests, and determine the best fix"
-```
+terminal tasks return quickly. For harder tasks where you want the model to
+spend more time reasoning, enable thinking explicitly with `--think`.
 
 The selected Ollama model is kept loaded for a short period so repeated
 Shellmancer runs can avoid unnecessary model reloads.
@@ -102,7 +107,7 @@ shellmancer -C ~/src/myproject "run the tests, diagnose failures, and fix them"
 Use another Ollama model:
 
 ```bash
-shellmancer -m qwen3:14b "inspect this repository and explain how to build it"
+shellmancer -m qwen3:4b "review the files in this directory and summarize their purpose"
 ```
 
 Alias:
@@ -148,7 +153,7 @@ shellmancer --yolo \
 ## Environment variables
 
 ```text
-SHELLMANCER_MODEL=qwen3:8b
+SHELLMANCER_MODEL=qwen3:1.7b
 SHELLMANCER_OLLAMA_URL=http://127.0.0.1:11434
 SHELLMANCER_MAX_STEPS=25
 SHELLMANCER_TIMEOUT=300
