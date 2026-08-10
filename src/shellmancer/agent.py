@@ -31,7 +31,11 @@ When the task is complete:
 {"type":"final","message":"concise result for the user"}
 
 Guidelines:
-- Inspect the environment instead of assuming a program is installed.
+- If the user is only greeting you, chatting, or asking something that does not
+  require terminal access, answer immediately with a final response. Do not run
+  a shell command just because one is available.
+- Inspect the environment instead of assuming a program is installed when a task
+  actually requires terminal access.
 - Prefer non-interactive command flags.
 - Keep each shell action purposeful.
 - Check exit codes and stderr.
@@ -49,6 +53,7 @@ class AgentOptions:
     auto_approve: bool = False
     cwd: str | None = None
     verbose: bool = True
+    think: bool = False
 
 
 class Agent:
@@ -87,9 +92,13 @@ class Agent:
 
         for step in range(1, self.config.max_steps + 1):
             if self.options.verbose:
-                print(f"\n[Shellmancer step {step}/{self.config.max_steps}]")
+                mode = "think" if self.options.think else "fast"
+                print(
+                    f"\n[Shellmancer step {step}/{self.config.max_steps} | "
+                    f"{self.config.model} | {mode}]"
+                )
 
-            raw = self.provider.chat(messages)
+            raw = self.provider.chat(messages, think=self.options.think)
             action = parse_action(raw)
             messages.append({"role": "assistant", "content": raw})
 
