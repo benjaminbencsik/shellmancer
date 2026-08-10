@@ -26,6 +26,8 @@ terminal or command-execution capability.
 Do not narrate that you are going to run, execute, or use a command. If terminal
 access is needed, call the shell tool immediately. After tool results are
 returned, continue working until you can give the user a completed answer.
+Never return a bare completion such as "Done" or "Complete" when requested work
+has not actually been performed.
 
 When using the shell:
 - Work inside the supplied current working directory unless the task requires otherwise.
@@ -51,6 +53,10 @@ _UNEXECUTED_SHELL_INTENT_RE = re.compile(
     r"(?:use|run|execute|invoke)\b[^.!?]*(?:\bcommand\b|\bshell\b|\bterminal\b|\btool\b)",
     re.IGNORECASE,
 )
+_VACUOUS_COMPLETION_RE = re.compile(
+    r"^(?:done|complete|completed|finished|all done|task complete)[.!]*$",
+    re.IGNORECASE,
+)
 
 
 def clean_model_text(text: str) -> str:
@@ -66,6 +72,11 @@ def is_false_capability_refusal(text: str) -> bool:
 def is_unexecuted_shell_intent(text: str) -> bool:
     """Detect narration that promises a shell action without making a tool call."""
     return bool(_UNEXECUTED_SHELL_INTENT_RE.search(text))
+
+
+def is_vacuous_completion(text: str) -> bool:
+    """Detect a completion claim that contains no useful result."""
+    return bool(_VACUOUS_COMPLETION_RE.fullmatch(text.strip()))
 
 
 @dataclass(slots=True)
@@ -130,6 +141,7 @@ class Agent:
             },
         ]
         recovery_retry_used = False
+        shell_used = False
 
         for step in range(1, self.config.max_steps + 1):
             if self.options.verbose:
@@ -150,21 +162,26 @@ class Agent:
             if not isinstance(tool_calls, list) or not tool_calls:
                 content = clean_model_text(str(response.get("content") or ""))
                 needs_recovery = (
-                    is_false_capability_refusal(content)
+                    not content
+                    or is_false_capability_refusal(content)
                     or is_unexecuted_shell_intent(content)
+                    or (not shell_used and is_vacuous_completion(content))
                 )
-                if content and needs_recovery and not recovery_retry_used:
+                if needs_recovery and not recovery_retry_used:
                     recovery_retry_used = True
                     messages.append({
                         "role": "user",
                         "content": (
-                            "Correction: do not narrate a shell action or claim shell access "
-                            "is unavailable. If this task needs machine access, call the shell "
-                            "tool now. Otherwise provide the completed answer directly."
+                            "Correction: do not narrate unfinished work, claim shell access "
+                            "is unavailable, or return an empty completion. If this task needs "
+                            "machine access, call the shell tool now. Otherwise provide a useful "
+                            "completed answer directly."
                         ),
                     })
                     continue
-                return content or "Done."
+                if not content or (not shell_used and is_vacuous_completion(content)):
+                    return "The model did not complete the task."
+                return content
 
             for call in tool_calls:
                 if not isinstance(call, dict):
@@ -208,6 +225,7 @@ class Agent:
                     self.ui.command(command)
 
                 result = self.shell.run(command)
+                shell_used = True
                 rendered = result.render(self.config.max_output_chars)
                 print(rendered)
                 messages.append({
