@@ -81,17 +81,6 @@ You can also target another directory without changing directories first:
 shellmancer -C ~/projects/my-app "inspect this project and explain its structure"
 ```
 
-## Native tool calling
-
-Shellmancer uses Ollama's native function-calling interface. The model receives
-one general-purpose `shell` function and decides whether terminal access is
-needed. Normal conversational responses return directly without passing through
-a custom command protocol.
-
-When the model invokes the shell function, Shellmancer executes the command only
-after approval unless YOLO mode is enabled. Command results are returned to the
-model as tool results so it can continue the task.
-
 ## Fast mode and thinking
 
 Shellmancer disables model thinking by default so short prompts and routine
