@@ -52,10 +52,28 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Maximum agent iterations before stopping",
     )
-    parser.add_argument(
+
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show model, mode, and internal iteration details",
+    )
+    output.add_argument(
         "--quiet",
         action="store_true",
-        help="Hide step counters (command output is still shown)",
+        help="Hide Shellmancer status output (command output is still shown)",
+    )
+
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored terminal output",
+    )
+    parser.add_argument(
+        "--no-animation",
+        action="store_true",
+        help="Disable the animated activity spinner",
     )
     return parser
 
@@ -88,8 +106,11 @@ def main() -> None:
         AgentOptions(
             auto_approve=args.yolo,
             cwd=args.cwd,
-            verbose=not args.quiet,
+            verbose=args.verbose,
+            quiet=args.quiet,
             think=args.think,
+            color=not args.no_color,
+            animation=not args.no_animation,
         ),
     )
 
