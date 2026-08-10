@@ -23,6 +23,10 @@ When the task requires inspecting or changing the user's machine, use the shell
 tool. The shell tool is real and available to you; do not claim that you lack
 terminal or command-execution capability.
 
+Do not narrate that you are going to run, execute, or use a command. If terminal
+access is needed, call the shell tool immediately. After tool results are
+returned, continue working until you can give the user a completed answer.
+
 When using the shell:
 - Work inside the supplied current working directory unless the task requires otherwise.
 - Prefer purposeful, non-interactive commands.
@@ -42,6 +46,11 @@ _FALSE_CAPABILITY_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
+_UNEXECUTED_SHELL_INTENT_RE = re.compile(
+    r"\b(?:i\s+will|i'll|i\s+am\s+going\s+to|let\s+me)\s+"
+    r"(?:use|run|execute|invoke)\b[^.!?]*(?:\bcommand\b|\bshell\b|\bterminal\b|\btool\b)",
+    re.IGNORECASE,
+)
 
 
 def clean_model_text(text: str) -> str:
@@ -52,6 +61,11 @@ def clean_model_text(text: str) -> str:
 def is_false_capability_refusal(text: str) -> bool:
     """Detect a model incorrectly claiming Shellmancer has no terminal access."""
     return bool(_FALSE_CAPABILITY_RE.search(text))
+
+
+def is_unexecuted_shell_intent(text: str) -> bool:
+    """Detect narration that promises a shell action without making a tool call."""
+    return bool(_UNEXECUTED_SHELL_INTENT_RE.search(text))
 
 
 @dataclass(slots=True)
@@ -115,7 +129,7 @@ class Agent:
                 "content": f"Current working directory: {cwd}\n\nTask:\n{task}",
             },
         ]
-        capability_retry_used = False
+        recovery_retry_used = False
 
         for step in range(1, self.config.max_steps + 1):
             if self.options.verbose:
@@ -135,18 +149,18 @@ class Agent:
 
             if not isinstance(tool_calls, list) or not tool_calls:
                 content = clean_model_text(str(response.get("content") or ""))
-                if (
-                    content
-                    and not capability_retry_used
-                    and is_false_capability_refusal(content)
-                ):
-                    capability_retry_used = True
+                needs_recovery = (
+                    is_false_capability_refusal(content)
+                    or is_unexecuted_shell_intent(content)
+                )
+                if content and needs_recovery and not recovery_retry_used:
+                    recovery_retry_used = True
                     messages.append({
                         "role": "user",
                         "content": (
-                            "Correction: the shell tool is available. If this request does "
-                            "not require terminal access, answer it normally. If it does, "
-                            "use the shell tool instead of claiming terminal access is unavailable."
+                            "Correction: do not narrate a shell action or claim shell access "
+                            "is unavailable. If this task needs machine access, call the shell "
+                            "tool now. Otherwise provide the completed answer directly."
                         ),
                     })
                     continue
