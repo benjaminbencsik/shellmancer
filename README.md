@@ -66,6 +66,25 @@ You can also target another directory without changing directories first:
 shellmancer -C ~/projects/my-app "inspect this project and explain its structure"
 ```
 
+## Fast mode and thinking
+
+Shellmancer disables model thinking by default so short prompts and routine
+terminal tasks return quickly. For example:
+
+```bash
+shellmancer "hello"
+```
+
+For harder tasks where you want the model to spend more time reasoning, enable
+thinking explicitly:
+
+```bash
+shellmancer --think "inspect this project, diagnose the failing tests, and determine the best fix"
+```
+
+The selected Ollama model is kept loaded for a short period so repeated
+Shellmancer runs can avoid unnecessary model reloads.
+
 ## Examples
 
 Ask before each generated command:
