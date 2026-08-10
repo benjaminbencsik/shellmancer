@@ -30,6 +30,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ollama-url", help="Ollama base URL")
     parser.add_argument("-C", "--cwd", help="Working directory")
     parser.add_argument(
+        "--think",
+        action="store_true",
+        help="Enable the model's reasoning/thinking mode for harder tasks",
+    )
+    parser.add_argument(
         "-y",
         "--yes",
         "--yolo",
@@ -84,6 +89,7 @@ def main() -> None:
             auto_approve=args.yolo,
             cwd=args.cwd,
             verbose=not args.quiet,
+            think=args.think,
         ),
     )
 
@@ -93,6 +99,13 @@ def main() -> None:
         print(
             f"Could not connect to Ollama at {config.ollama_url}. "
             "Start Ollama first or pass --ollama-url.",
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    except requests.Timeout:
+        print(
+            f"Ollama did not respond within {config.command_timeout} seconds. "
+            "Check that the selected model is available and responsive.",
             file=sys.stderr,
         )
         raise SystemExit(1)
