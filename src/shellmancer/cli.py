@@ -78,6 +78,29 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def format_ollama_http_error(exc: requests.HTTPError, model: str) -> str:
+    response = exc.response
+    detail = ""
+
+    if response is not None:
+        try:
+            payload = response.json()
+            if isinstance(payload, dict):
+                detail = str(payload.get("error", "")).strip()
+        except (ValueError, TypeError):
+            detail = ""
+
+        if response.status_code == 404 and "model" in detail.lower():
+            return (
+                f"Ollama model '{model}' is not installed.\n"
+                f"Install it with: ollama pull {model}"
+            )
+
+    if detail:
+        return f"Ollama request failed: {detail}"
+    return f"Ollama request failed: {exc}"
+
+
 def main() -> None:
     args = build_parser().parse_args()
     task = " ".join(args.task).strip()
@@ -131,7 +154,7 @@ def main() -> None:
         )
         raise SystemExit(1)
     except requests.HTTPError as exc:
-        print(f"Ollama request failed: {exc}", file=sys.stderr)
+        print(format_ollama_http_error(exc, config.model), file=sys.stderr)
         raise SystemExit(1)
     except KeyboardInterrupt:
         print("\nAborted.")
