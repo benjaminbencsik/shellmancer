@@ -7,6 +7,7 @@ from .config import Config
 from .protocol import parse_action
 from .providers.ollama import OllamaProvider
 from .tools.shell import ShellTool
+from .ui import TerminalUI
 
 
 SYSTEM_PROMPT = r"""
@@ -55,6 +56,8 @@ class AgentOptions:
     verbose: bool = False
     quiet: bool = False
     think: bool = False
+    color: bool = True
+    animation: bool = True
 
 
 class Agent:
@@ -67,12 +70,18 @@ class Agent:
             timeout=config.command_timeout,
         )
         self.shell = ShellTool(cwd=options.cwd, timeout=config.command_timeout)
+        self.ui = TerminalUI(
+            quiet=options.quiet,
+            verbose=options.verbose,
+            color=options.color,
+            animation=options.animation,
+        )
 
     def _approve(self, command: str) -> bool:
         if self.options.auto_approve:
             return True
 
-        print(f"\n$ {command}")
+        self.ui.command(command)
         try:
             answer = input("Run this command? [Y/n/q] ").strip().lower()
         except EOFError:
@@ -80,21 +89,6 @@ class Agent:
         if answer in {"q", "quit", "exit"}:
             raise KeyboardInterrupt
         return answer in {"", "y", "yes"}
-
-    def _show_status(self, step: int) -> None:
-        if self.options.quiet:
-            return
-
-        if self.options.verbose:
-            mode = "think" if self.options.think else "fast"
-            print(
-                f"\n[Shellmancer step {step}/{self.config.max_steps} | "
-                f"{self.config.model} | {mode}]"
-            )
-            return
-
-        status = "Thinking..." if step == 1 else "Continuing..."
-        print(f"\nShellmancer › {status}")
 
     def run(self, task: str) -> str:
         cwd = str(Path(self.shell.cwd))
@@ -107,9 +101,18 @@ class Agent:
         ]
 
         for step in range(1, self.config.max_steps + 1):
-            self._show_status(step)
+            if self.options.verbose:
+                self.ui.detailed_status(
+                    step,
+                    self.config.max_steps,
+                    self.config.model,
+                    self.options.think,
+                )
 
-            raw = self.provider.chat(messages, think=self.options.think)
+            label = "Thinking" if step == 1 else "Working"
+            with self.ui.activity(label):
+                raw = self.provider.chat(messages, think=self.options.think)
+
             action = parse_action(raw)
             messages.append({"role": "assistant", "content": raw})
 
@@ -132,7 +135,7 @@ class Agent:
                 continue
 
             if self.options.auto_approve:
-                print(f"\n$ {command}")
+                self.ui.command(command)
 
             result = self.shell.run(command)
             rendered = result.render(self.config.max_output_chars)
