@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any
 
 from .config import Config
@@ -25,6 +26,14 @@ When using the shell:
 - Do not claim a command succeeded unless its result shows that it did.
 - The user controls authorization and scope; do not invent authorization.
 """.strip()
+
+
+_TRAILING_THINK_MARKER_RE = re.compile(r"\s*/(?:no_think|think)\s*$", re.IGNORECASE)
+
+
+def clean_model_text(text: str) -> str:
+    """Remove model control markers that should never be shown to the user."""
+    return _TRAILING_THINK_MARKER_RE.sub("", text).strip()
 
 
 @dataclass(slots=True)
@@ -72,7 +81,7 @@ class Agent:
     def _assistant_message(message: dict[str, Any]) -> dict[str, Any]:
         clean: dict[str, Any] = {
             "role": "assistant",
-            "content": str(message.get("content") or ""),
+            "content": clean_model_text(str(message.get("content") or "")),
         }
         tool_calls = message.get("tool_calls")
         if isinstance(tool_calls, list) and tool_calls:
@@ -106,7 +115,7 @@ class Agent:
             tool_calls = response.get("tool_calls")
 
             if not isinstance(tool_calls, list) or not tool_calls:
-                content = str(response.get("content") or "").strip()
+                content = clean_model_text(str(response.get("content") or ""))
                 return content or "Done."
 
             for call in tool_calls:
