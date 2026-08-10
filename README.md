@@ -110,16 +110,3 @@ natural-language task
 
 The loop continues until the model emits a final response.
 ```
-
-## Recommended next milestones
-
-1. Native Ollama/OpenAI-compatible tool calling in addition to JSON fallback.
-2. Persistent interactive `shellmancer chat` sessions.
-3. PTY support for commands that stream output.
-4. Docker/Podman sandbox mode.
-5. Approval policies: ask, allow, sandbox, deny patterns, and full-auto.
-6. File-reading/editing primitives optimized for coding tasks.
-7. Session transcripts and resumable runs.
-8. Provider abstraction for llama.cpp, LM Studio, vLLM, and OpenAI-compatible APIs.
-9. Rich TUI with live command/output panels.
-10. Optional MCP server/client support.
