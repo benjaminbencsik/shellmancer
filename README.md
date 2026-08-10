@@ -14,7 +14,7 @@ to accomplish a task.
 - Linux, macOS, or WSL with `/bin/bash`
 - Python 3.10+
 - Ollama running locally
-- An Ollama model capable of following structured instructions reliably
+- An Ollama model with tool-calling support
 - `pipx` recommended for a global CLI install
 
 ## Install
@@ -96,6 +96,17 @@ Useful display controls:
 - `--quiet` — hide Shellmancer status messages while preserving command output
 - `--no-color` — disable ANSI colors
 - `--no-animation` — replace the spinner with a static status message
+
+## Native tool calling
+
+Shellmancer uses Ollama's native function-calling interface. The model receives
+one general-purpose `shell` function and decides whether terminal access is
+needed. Normal conversational responses return directly without passing through
+a custom command protocol.
+
+When the model invokes the shell function, Shellmancer executes the command only
+after approval unless YOLO mode is enabled. Command results are returned to the
+model as tool results so it can continue the task.
 
 ## Fast mode and thinking
 
@@ -191,15 +202,16 @@ natural-language task
 |    Ollama / LLM   |
 +---------+---------+
           |
-          | {"type":"shell","command":"..."}
+          | normal text OR native shell tool call
           v
 +-------------------+
 |   /bin/bash       |
 | arbitrary command |
 +---------+---------+
           |
-          | stdout / stderr / exit code
+          | tool result: stdout / stderr / exit code
           +---------------------> LLM
 
-The loop continues until the model emits a final response.
+The loop continues until the model returns a normal response without another
+tool call.
 ```
